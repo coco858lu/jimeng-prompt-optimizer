@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "即梦提示词优化器",
+  "version": "1.0.0",
+  "description": "调用豆包/DeepSeek等AI模型对即梦提示词进行优化，支持参考图理解与自定义模板",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://jimeng.jianying.com/*",
+    "https://ark.cn-beijing.volces.com/*",
+    "https://api.deepseek.com/*",
+    "https://dashscope.aliyuncs.com/*"
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "即梦提示词优化器",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "src/options/options.html",
+  "background": {
+    "service_worker": "src/background/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://jimeng.jianying.com/*"],
+      "js": ["src/content/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*"],
+      "matches": ["https://jimeng.jianying.com/*"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>即梦提示词优化器</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1 class="title">✨ 即梦提示词优化器</h1>
+      <span class="version">v1.0.0</span>
+    </header>
+
+    <main class="main">
+      <!-- 提示词输入区 -->
+      <section class="section">
+        <div class="section-header">
+          <label for="prompt-input">提示词</label>
+          <div class="actions">
+            <button id="read-prompt-btn" class="btn btn-sm" title="从即梦页面读取当前提示词">📄 读取</button>
+            <button id="clear-btn" class="btn btn-sm btn-secondary" title="清空输入">🗑️</button>
+          </div>
+        </div>
+        <textarea
+          id="prompt-input"
+          class="textarea"
+          placeholder="输入提示词，或点击「读取」从即梦页面获取..."
+          rows="4"
+        ></textarea>
+      </section>
+
+      <!-- 参考图信息 -->
+      <section class="section" id="image-section">
+        <div class="section-header">
+          <label>参考图</label>
+          <button id="scan-images-btn" class="btn btn-sm" title="从页面获取参考图">🔄 扫描</button>
+        </div>
+        <div id="image-preview-area" class="image-preview-area">
+          <span class="image-placeholder">未检测到参考图</span>
+        </div>
+      </section>
+
+      <!-- 模板选择 -->
+      <section class="section">
+        <div class="section-header">
+          <label for="template-select">优化模板</label>
+        </div>
+        <select id="template-select" class="select">
+          <option value="">加载中...</option>
+        </select>
+      </section>
+
+      <!-- 模型选择 -->
+      <section class="section">
+        <div class="section-header">
+          <label for="provider-select">AI 模型</label>
+          <a href="#" id="open-options" class="link">设置 →</a>
+        </div>
+        <select id="provider-select" class="select"></select>
+      </section>
+
+      <!-- 状态信息 -->
+      <div id="status-bar" class="status-bar"></div>
+
+      <!-- 优化按钮 + 批量次数 -->
+      <div class="optimize-row">
+        <div class="batch-control">
+          <label for="batch-count" class="batch-label">次数</label>
+          <input type="number" id="batch-count" class="batch-input" value="1" min="1" max="10">
+        </div>
+        <button id="optimize-btn" class="btn btn-primary" disabled>
+          <span class="btn-icon">🚀</span>
+          <span class="btn-text">开始优化</span>
+        </button>
+      </div>
+
+      <!-- 结果区 -->
+      <section class="section result-section" id="result-section" style="display:none;">
+        <div class="section-header">
+          <label>优化结果</label>
+          <div class="actions">
+            <button id="copy-btn" class="btn btn-sm" title="复制结果">📋 复制</button>
+            <button id="write-back-btn" class="btn btn-sm" title="回填到即梦页面">⬅ 回填</button>
+            <button id="append-btn" class="btn btn-sm btn-secondary" title="追加到现有提示词后面">➕ 追加</button>
+          </div>
+        </div>
+        <textarea
+          id="result-output"
+          class="textarea result-textarea"
+          placeholder="优化后的提示词将显示在这里..."
+          rows="6"
+          readonly
+        ></textarea>
+      </section>
+
+      <!-- 历史记录 -->
+      <section class="section" id="history-section">
+        <div class="section-header">
+          <label>历史记录</label>
+          <button id="clear-history-btn" class="btn btn-sm btn-secondary" title="清空历史">🗑️</button>
+        </div>
+        <div id="history-list" class="history-list">
+          <span class="history-empty">暂无记录</span>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>❤️ 即梦提示词优化器</span>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
