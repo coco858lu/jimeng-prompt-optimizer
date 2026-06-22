@@ -25,11 +25,10 @@ const SELECTORS = {
 
 // ==================== 工具函数 ====================
 
-/** 从 mention 标签中提取唯一标识（优先 blob URL，其次 label） */
+/** 从 mention 标签中提取唯一标识（优先 blob/CDN URL，其次 label） */
 function getMentionKey(tagEl) {
-  // 优先 blob URL
-  const img = tagEl.querySelector('img[src^="blob:"]');
-  if (img && img.src) return img.src;
+  const img = tagEl.querySelector('img');
+  if (img && img.src && (img.src.startsWith('blob:') || img.src.startsWith('http'))) return img.src;
   // 降级：label 文本
   const label = tagEl.querySelector('[class*="label-"]');
   return label ? label.textContent.trim() : null;
@@ -70,11 +69,12 @@ function readPrompt() {
 
   // 1. 先扫描参考面板，建立图片 → 面板顺序号 的映射
   const panelImages = queryPanelImages();
-  const panelOrderMap = new Map(); // blobURL → 面板中的序号 (1-based)
+  const panelOrderMap = new Map(); // URL → 面板中的序号 (1-based)
   panelImages.forEach((img, i) => {
-    if (img.src && img.src.startsWith('blob:')) {
-      if (!panelOrderMap.has(img.src)) {
-        panelOrderMap.set(img.src, i + 1);
+    const url = img.src || '';
+    if (url && (url.startsWith('blob:') || url.startsWith('http'))) {
+      if (!panelOrderMap.has(url)) {
+        panelOrderMap.set(url, i + 1);
       }
     }
   });
@@ -257,12 +257,12 @@ function queryPanelImages() {
     return (isNaN(ia) ? 0 : ia) - (isNaN(ib) ? 0 : ib);
   });
 
-  // 从每个条目中提取 blob 图片
+  // 从每个条目中提取图片（支持 blob URL 新建任务 和 https CDN 编辑已有任务）
   for (const item of sortedItems) {
     const imgs = item.querySelectorAll('img');
     for (const img of imgs) {
       const src = img.src || '';
-      if (src.startsWith('blob:') && !seenSrcs.has(src)) {
+      if ((src.startsWith('blob:') || src.startsWith('http')) && !seenSrcs.has(src)) {
         seenSrcs.add(src);
         results.push(img);
       }
