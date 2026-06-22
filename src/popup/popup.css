@@ -170,9 +170,10 @@ body {
   gap: 8px;
 }
 
-.btn-primary:hover:not(:disabled) {
+.btn-primary:hover:not(:disabled):not(.loading) {
   transform: translateY(-1px);
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #7b93f5, #8b5cf6);
 }
 
 .btn-primary:disabled {
@@ -382,6 +383,12 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 4px;
+}
+
+.section-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
 .history-item-model {

@@ -18,6 +18,7 @@ const copyBtn = $('copy-btn');
 const writeBackBtn = $('write-back-btn');
 const appendBtn = $('append-btn');
 const scanImagesBtn = $('scan-images-btn');
+const clearImagesBtn = $('clear-images-btn');
 const imagePreviewArea = $('image-preview-area');
 const openOptionsLink = $('open-options');
 const historyList = $('history-list');
@@ -174,6 +175,13 @@ async function checkCurrentTab() {
 function bindEvents() {
   // 读取提示词
   readPromptBtn.addEventListener('click', readPromptFromPage);
+
+  // 清空参考图
+  clearImagesBtn.addEventListener('click', () => {
+    capturedImages = [];
+    renderImagePreviews();
+    saveState();
+  });
 
   // 清空
   clearBtn.addEventListener('click', () => {
