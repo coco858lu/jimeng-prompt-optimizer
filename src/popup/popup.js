@@ -345,6 +345,12 @@ async function optimizePrompt() {
   const imageBase64Array = capturedImages.map(img => img.data);
   const modelValue = providerSelect.value;
 
+  // 检查当前模型是否支持多模态
+  const selectedProvider = modelValue.split(':')[0];
+  if (imageBase64Array.length > 0 && selectedProvider === 'deepseek') {
+    setStatus('⚠️ DeepSeek 不支持多模态，参考图将不会被发送', 'info');
+  }
+
   let lastResult = '';
 
   for (let i = 0; i < total; i++) {
