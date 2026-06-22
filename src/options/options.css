@@ -65,6 +65,25 @@ body {
   margin-bottom: 4px;
 }
 
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.card-title-row .card-title {
+  margin-bottom: 0;
+}
+
+.card-title-row .btn {
+  font-size: 11px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
 .card-desc {
   font-size: 13px;
   color: var(--text-secondary);

@@ -77,8 +77,27 @@ const BUILTIN_MODELS = {
 // --- 获取配置 ---
 async function getConfig() {
   const result = await chrome.storage.sync.get([
-    'provider', 'doubao', 'deepseek', 'qwen', 'custom', 'templates'
+    'provider', 'doubao', 'deepseek', 'qwen', 'custom'
   ]);
+
+  // 模板数据较大，从 chrome.storage.local 读取（避免 sync 8KB 配额限制）
+  let templates = DEFAULT_CONFIG.templates;
+  try {
+    const localResult = await chrome.storage.local.get('templates');
+    if (localResult.templates && localResult.templates.length > 0) {
+      templates = localResult.templates;
+    } else {
+      // 迁移：从 sync 读取旧模板并写入 local
+      const syncResult = await chrome.storage.sync.get('templates');
+      if (syncResult.templates && syncResult.templates.length > 0) {
+        templates = syncResult.templates;
+        chrome.storage.local.set({ templates }).catch(() => {});
+        chrome.storage.sync.remove('templates').catch(() => {});
+      }
+    }
+  } catch (e) {
+    // 降级到默认模板
+  }
 
   // 兼容旧版 custom 数据格式（单个对象 → 数组）
   let customItems = [];
@@ -111,7 +130,7 @@ async function getConfig() {
     deepseek: { ...DEFAULT_CONFIG.deepseek, ...result.deepseek },
     qwen: { ...DEFAULT_CONFIG.qwen, ...result.qwen },
     custom: { items: customItems, selectedId: null },
-    templates: result.templates || DEFAULT_CONFIG.templates
+    templates: templates || DEFAULT_CONFIG.templates
   };
 }
 

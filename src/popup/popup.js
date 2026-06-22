@@ -132,9 +132,9 @@ const PROVIDER_LABELS = {
 
 // --- 加载模板 ---
 function loadTemplates() {
-  chrome.storage.sync.get(['templates', 'currentTemplateId'], (result) => {
+  chrome.storage.local.get(['templates', 'currentTemplateId'], (result) => {
     const templates = result.templates || [];
-    const currentId = result.currentTemplateId || 'detail-en';
+    const currentId = result.currentTemplateId || 'detail-zh';
 
     templateSelect.innerHTML = '';
     if (templates.length === 0) {
@@ -152,7 +152,7 @@ function loadTemplates() {
 
     // 保存选中的模板
     templateSelect.addEventListener('change', () => {
-      chrome.storage.sync.set({ currentTemplateId: templateSelect.value });
+      chrome.storage.local.set({ currentTemplateId: templateSelect.value });
     });
   });
 }

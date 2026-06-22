@@ -43,18 +43,22 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- 加载设置 ---
 function loadSettings() {
   chrome.storage.sync.get([
-    'provider', 'doubao', 'deepseek', 'qwen', 'custom', 'templates', 'currentTemplateId'
-  ], (result) => {
-    // 默认值
-    const config = {
-      provider: 'doubao',
-      doubao: { apiKey: '', endpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'doubao-seed-2-0-pro-260215' },
-      deepseek: { apiKey: '', endpoint: 'https://api.deepseek.com/chat/completions', model: 'deepseek-v4-flash' },
-      qwen: { apiKey: '', endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen-max' },
-      custom: { items: [], selectedId: null },
-      templates: DEFAULT_TEMPLATES,
-      ...result
-    };
+    'provider', 'doubao', 'deepseek', 'qwen', 'custom'
+  ], (syncResult) => {
+    // 模板从 local 读取（避免 sync 8KB 配额限制）
+    chrome.storage.local.get(['templates', 'currentTemplateId'], (localResult) => {
+      // 默认值
+      const config = {
+        provider: 'doubao',
+        doubao: { apiKey: '', endpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'doubao-seed-2-0-pro-260215' },
+        deepseek: { apiKey: '', endpoint: 'https://api.deepseek.com/chat/completions', model: 'deepseek-v4-flash' },
+        qwen: { apiKey: '', endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen-max' },
+        custom: { items: [], selectedId: null },
+        templates: DEFAULT_TEMPLATES,
+        currentTemplateId: 'detail-zh',
+        ...syncResult,
+        ...localResult
+      };
 
     // 兼容旧版 custom 格式（单个对象 → 数组）
     if (config.custom && !Array.isArray(config.custom.items)) {
@@ -95,6 +99,7 @@ function loadSettings() {
 
     // 渲染模板
     renderTemplates(config.templates);
+    });
   });
 }
 
@@ -248,14 +253,14 @@ function renderTemplates(templates) {
 
 // --- 添加模板 ---
 function addTemplate() {
-  chrome.storage.sync.get(['templates'], (result) => {
+  chrome.storage.local.get(['templates'], (result) => {
     const templates = result.templates || DEFAULT_TEMPLATES;
     templates.push({
       id: 'custom-' + Date.now(),
       name: '新模板 ' + (templates.length + 1),
       prompt: '优化以下提示词：\n\n{prompt}'
     });
-    chrome.storage.sync.set({ templates }, () => {
+    chrome.storage.local.set({ templates }, () => {
       renderTemplates(templates);
     });
   });
@@ -263,16 +268,35 @@ function addTemplate() {
 
 // --- 删除模板 ---
 function deleteTemplate(index) {
-  chrome.storage.sync.get(['templates'], (result) => {
+  chrome.storage.local.get(['templates'], (result) => {
     const templates = result.templates || DEFAULT_TEMPLATES;
     if (templates.length <= 1) {
       showSaveStatus('至少保留一个模板', 'error');
       return;
     }
     templates.splice(index, 1);
-    chrome.storage.sync.set({ templates }, () => {
+    chrome.storage.local.set({ templates }, () => {
       renderTemplates(templates);
       showSaveStatus('已删除模板', 'success');
+    });
+  });
+}
+
+// --- 恢复默认模板（保留自定义模板，补全缺失的预设模板）---
+function restoreDefaultTemplates() {
+  chrome.storage.local.get(['templates'], (result) => {
+    const existing = result.templates || [];
+    const defaultIds = new Set(DEFAULT_TEMPLATES.map(t => t.id));
+
+    // 保留所有非预设模板（用户自定义的模板）
+    const customTemplates = existing.filter(t => !defaultIds.has(t.id));
+
+    // 默认模板 + 自定义模板
+    const merged = [...DEFAULT_TEMPLATES, ...customTemplates];
+
+    chrome.storage.local.set({ templates: merged }, () => {
+      renderTemplates(merged);
+      showSaveStatus('✅ 已恢复默认预设模板，自定义模板已保留', 'success');
     });
   });
 }
@@ -311,14 +335,18 @@ function saveSettings() {
     return { id: 'custom-' + Date.now() + '-' + index, name, prompt };
   });
 
-  const data = { provider, ...configs, templates };
+  const data = { provider, ...configs };
 
+  // 小数据（API 配置）保存到 sync
   chrome.storage.sync.set(data, () => {
     if (chrome.runtime.lastError) {
       showSaveStatus('保存失败: ' + chrome.runtime.lastError.message, 'error');
-    } else {
-      showSaveStatus('✅ 设置已保存！', 'success');
+      return;
     }
+    // 大数据（模板）保存到 local，避免 sync 8KB 配额限制
+    chrome.storage.local.set({ templates, currentTemplateId: 'detail-zh' }, () => {
+      showSaveStatus('✅ 设置已保存！', 'success');
+    });
   });
 }
 
@@ -330,6 +358,7 @@ function bindEvents() {
 
   document.getElementById('save-btn').addEventListener('click', saveSettings);
   document.getElementById('add-template-btn').addEventListener('click', addTemplate);
+  document.getElementById('restore-templates-btn').addEventListener('click', restoreDefaultTemplates);
   document.getElementById('add-custom-btn').addEventListener('click', addCustomItem);
 
   // 密码显隐切换（内置 provider）
