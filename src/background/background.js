@@ -174,49 +174,82 @@ function getProviderLabel(provider) {
   return provider; // custom items use their ID
 }
 
-// --- 调用大模型 API ---
+// 支持多模态（图片输入）的内置 provider（deepseek 不支持）
+const MULTIMODAL_PROVIDERS = ['doubao', 'qwen'];
+
+// --- 调用大模型 API（自定义 API：先试带图，失败降级为纯文本） ---
 async function callAI(promptText, imageBase64Array = []) {
   const config = await getConfig();
   const providerConf = getProviderConfig(config);
 
-  // 构建消息
   const { name: providerName } = parseProvider(config.provider);
-  const messages = buildMessages(config, promptText, providerName, imageBase64Array);
-  console.log('API 请求:', { provider: config.provider, model: providerConf.model, images: imageBase64Array.length });
+  const isBuiltin = BUILTIN_PROVIDERS.includes(providerName);
+  const supportsVision = MULTIMODAL_PROVIDERS.includes(providerName);
 
-  // 发送请求
-  const response = await fetch(providerConf.endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${providerConf.apiKey}`
-    },
-    body: JSON.stringify({
-      model: providerConf.model,
-      messages: messages,
-      temperature: 0.7,
-      max_tokens: 2000
-    })
-  });
+  // 决定是否发送图片
+  let tryWithImages = imageBase64Array.length > 0;
 
-  if (!response.ok) {
+  if (tryWithImages && isBuiltin && !supportsVision) {
+    // 已知不支持多模态的内置 provider — 直接跳过
+    tryWithImages = false;
+    console.log(`内置模型 (${providerName}) 不支持多模态，已跳过 ${imageBase64Array.length} 张参考图`);
+  }
+
+  // 如果 tryWithImages 为 true，先尝试带图请求
+  const maxAttempts = tryWithImages ? 2 : 1;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const sendImages = (attempt === 1) && tryWithImages;
+
+    const messages = buildMessages(config, promptText, sendImages ? imageBase64Array : []);
+    console.log(`API 请求 #${attempt}:`, { provider: config.provider, model: providerConf.model, images: sendImages ? imageBase64Array.length : 0 });
+
+    const response = await fetch(providerConf.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${providerConf.apiKey}`
+      },
+      body: JSON.stringify({
+        model: providerConf.model,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 2000
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const result = data.choices?.[0]?.message?.content?.trim();
+      if (!result) {
+        throw new Error('API 返回内容为空');
+      }
+      return result;
+    }
+
+    // 请求失败
     const errorText = await response.text();
-    throw new Error(`API 请求失败 (${response.status}): ${errorText}`);
-  }
 
-  const data = await response.json();
-  const result = data.choices?.[0]?.message?.content?.trim();
-  if (!result) {
-    throw new Error('API 返回内容为空');
+    // 如果是最后一次尝试，直接抛错
+    if (attempt === maxAttempts) {
+      throw new Error(`API 请求失败 (${response.status}): ${errorText}`);
+    }
+
+    // 如果不是最后一次，检查是否是图片相关的错误 → 降级重试
+    const isImageError = /image|vision|multimodal|unsupported.*format/i.test(errorText);
+    if (isImageError) {
+      console.log(`模型不支持多模态 (${response.status})，降级为纯文本重试`);
+      // 继续循环，下一轮不带图
+      tryWithImages = false;
+    } else {
+      // 非图片相关错误，直接抛出不重试
+      throw new Error(`API 请求失败 (${response.status}): ${errorText}`);
+    }
   }
-  return result;
 }
 
-// 支持多模态（图片输入）的 provider（deepseek 不支持）
-const MULTIMODAL_PROVIDERS = ['doubao', 'qwen'];
-
-// --- 构建消息（支持多张图片，按 provider 能力决定是否发送） ---
-function buildMessages(config, promptText, providerName, imageBase64Array) {
+// --- 构建消息（支持多张图片，callAI 已决定是否传入图片） ---
+function buildMessages(config, promptText, imageBase64Array) {
   // 找到匹配的模板
   const templateId = config.currentTemplateId || 'detail-zh';
   const template = config.templates.find(t => t.id === templateId) || config.templates[0];
@@ -225,10 +258,7 @@ function buildMessages(config, promptText, providerName, imageBase64Array) {
 
   const messages = [];
 
-  // 判断当前 provider 是否支持多模态
-  const supportsVision = MULTIMODAL_PROVIDERS.includes(providerName);
-
-  if (imageBase64Array && imageBase64Array.length > 0 && supportsVision) {
+  if (imageBase64Array && imageBase64Array.length > 0) {
     // 多模态请求 — 支持多张图片
     const content = [{ type: 'text', text: systemPrompt }];
     imageBase64Array.forEach(b64 => {
@@ -242,10 +272,7 @@ function buildMessages(config, promptText, providerName, imageBase64Array) {
     });
     messages.push({ role: 'user', content });
   } else {
-    // 纯文本请求（不支持多模态的 provider 自动跳过图片）
-    if (imageBase64Array && imageBase64Array.length > 0 && !supportsVision) {
-      console.log(`当前模型 (${providerName}) 不支持多模态，已跳过 ${imageBase64Array.length} 张参考图`);
-    }
+    // 纯文本请求
     messages.push({
       role: 'system',
       content: 'You are a professional AI prompt engineer. Respond concisely and accurately.'
